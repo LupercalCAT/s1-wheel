@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Standup Wheel</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Standup Spin Wheel</title>
   <style>
     body { font-family: sans-serif; text-align: center; margin-top: 50px; }
     canvas { margin: 20px; border: 2px solid #333; border-radius: 50%; }
@@ -24,7 +24,10 @@
     const spinBtn = document.getElementById("spinBtn");
     const resultDiv = document.getElementById("result");
 
-    function drawWheel() {
+    let currentAngle = 0;
+    let spinning = false;
+
+    function drawWheel(angle = 0) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (names.length === 0) {
         resultDiv.innerHTML = "<h2>All done!</h2>";
@@ -33,17 +36,17 @@
       }
       const arcSize = 2 * Math.PI / names.length;
       names.forEach((name, i) => {
-        const angle = i * arcSize;
+        const startAngle = angle + i * arcSize;
         ctx.beginPath();
         ctx.moveTo(250, 250);
-        ctx.arc(250, 250, 250, angle, angle + arcSize);
+        ctx.arc(250, 250, 250, startAngle, startAngle + arcSize);
         ctx.fillStyle = `hsl(${i * (360 / names.length)}, 70%, 60%)`;
         ctx.fill();
         ctx.stroke();
 
         ctx.save();
         ctx.translate(250, 250);
-        ctx.rotate(angle + arcSize/2);
+        ctx.rotate(startAngle + arcSize/2);
         ctx.textAlign = "right";
         ctx.fillStyle = "black";
         ctx.font = "20px sans-serif";
@@ -53,12 +56,40 @@
     }
 
     function spin() {
-      if (names.length === 0) return;
-      const winnerIndex = Math.floor(Math.random() * names.length);
-      const winner = names[winnerIndex];
-      resultDiv.innerHTML = `<h2>${winner} goes next!</h2>`;
-      names.splice(winnerIndex, 1);
-      drawWheel();
+      if (spinning || names.length === 0) return;
+      spinning = true;
+
+      const duration = 4000; // spin duration in ms
+      const totalSpins = 5;  // full rotations
+      const randomOffset = Math.random(); // random landing
+      const targetAngle = (totalSpins + randomOffset) * 2 * Math.PI;
+
+      const startTime = performance.now();
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easedProgress = easeOutCubic(progress);
+        currentAngle = targetAngle * easedProgress;
+        drawWheel(currentAngle);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          const winnerIndex = names.length - Math.floor(((currentAngle % (2 * Math.PI)) / (2 * Math.PI)) * names.length) - 1;
+          const winner = names[winnerIndex < 0 ? 0 : winnerIndex];
+          resultDiv.innerHTML = `<h2>${winner} goes next!</h2>`;
+          names.splice(winnerIndex, 1);
+          currentAngle = 0;
+          drawWheel();
+          spinning = false;
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
     }
 
     spinBtn.addEventListener("click", spin);
